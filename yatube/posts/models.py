@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
-CHARACTERS = 15
+from yatube.settings import CHARACTERS
 
 User = get_user_model()
 
