@@ -23,6 +23,13 @@ class PostPagesTests(TestCase):
             text='Тестовый пост',
             group=cls.group,
         )
+        cls.posts = []
+        for i in range(1, 13):
+            cls.posts.append(Post(
+                author=cls.user,
+                text=f'Тестовый пост_{i}',
+                group=cls.group,
+            ))
         cls.posts_name = (
             'posts:index',
             'posts:group_list',
@@ -143,17 +150,12 @@ class PostPagesTests(TestCase):
     def test_pages_paginator(self):
         """Paginator test"""
 
-        for i in range(1, 13):
-            Post.objects.create(
-                author=self.user,
-                text=f'Тестовый пост_{i}',
-                group=self.group,
-            )
         pages_addresses = [
             reverse(self.posts_name[0]),
             reverse(self.posts_name[1], kwargs=self.kwargs[0]),
             reverse(self.posts_name[2], kwargs=self.kwargs[1]),
         ]
+        Post.objects.bulk_create(self.posts, 13)
         for reverse_name in pages_addresses:
             page_list = {reverse_name: 10, reverse_name + '?page=2': 3}
             for page, number_post in page_list.items():
