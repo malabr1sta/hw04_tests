@@ -23,31 +23,34 @@ class PostPagesTests(TestCase):
             text='Тестовый пост',
             group=cls.group,
         )
-        cls.posts = []
-        for i in range(1, 13):
-            cls.posts.append(Post(
-                author=cls.user,
-                text=f'Тестовый пост_{i}',
-                group=cls.group,
-            ))
-        cls.posts_name = (
+        cls.index_page = (
             'posts:index',
-            'posts:group_list',
-            'posts:profile',
-            'posts:post_detail',
-            'posts:post_create',
-            'posts:post_edit',
-        )
-        cls.kwargs = (
-            {'slug': cls.group.slug},
-            {'username': cls.user.username},
-            {'post_id': cls.post.pk},
-        )
-        cls.html = (
+            None,
             'posts/index.html',
+        )
+        cls.group_page = (
+            'posts:group_list',
+            {'slug': cls.group.slug},
             'posts/group_list.html',
+        )
+        cls.profile_page = (
+            'posts:profile',
+            {'username': cls.user.username},
             'posts/profile.html',
+        )
+        cls.detail_page = (
+            'posts:post_detail',
+            {'post_id': cls.post.pk},
             'posts/post_detail.html',
+        )
+        cls.create_page = (
+            'posts:post_create',
+            None,
+            'posts/create_post.html',
+        )
+        cls.edit_page = (
+            'posts:post_edit',
+            {'post_id': cls.post.pk},
             'posts/create_post.html',
         )
 
@@ -66,15 +69,16 @@ class PostPagesTests(TestCase):
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
 
-        templates_pages_names = {
-            reverse(self.posts_name[0]): self.html[0],
-            reverse(self.posts_name[1], kwargs=self.kwargs[0]): self.html[1],
-            reverse(self.posts_name[2], kwargs=self.kwargs[1]): self.html[2],
-            reverse(self.posts_name[3], kwargs=self.kwargs[2]): self.html[3],
-            reverse(self.posts_name[4]): self.html[4],
-            reverse(self.posts_name[5], kwargs=self.kwargs[2]): self.html[4],
-        }
-        for reverse_name, template in templates_pages_names.items():
+        pages = (
+            self.index_page,
+            self.group_page,
+            self.profile_page,
+            self.detail_page,
+            self.create_page,
+            self.edit_page,
+        )
+        templates_pages = {reverse(i[0], kwargs=i[1]): i[2] for i in pages}
+        for reverse_name, template in templates_pages.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
@@ -84,9 +88,12 @@ class PostPagesTests(TestCase):
         сформированы с правильным контекстом."""
 
         pages_addresses_context = {
-            reverse(self.posts_name[0]): 'page_obj',
-            reverse(self.posts_name[2], kwargs=self.kwargs[1]): 'page_obj',
-            reverse(self.posts_name[3], kwargs=self.kwargs[2]): 'post',
+            reverse(self.index_page[0]): 'page_obj',
+            reverse(
+                self.profile_page[0],
+                kwargs=self.profile_page[1]
+            ): 'page_obj',
+            reverse(self.detail_page[0], kwargs=self.detail_page[1]): 'post',
         }
         for reverse_name, context in pages_addresses_context.items():
             with self.subTest(reverse_name=reverse_name):
@@ -95,15 +102,15 @@ class PostPagesTests(TestCase):
     def test_page_group_show_correct_context(self):
         """Шаблон group_list сформирован с правильным контекстом."""
 
-        reverse_name = reverse(self.posts_name[1], kwargs=self.kwargs[0])
+        reverse_name = reverse(self.group_page[0], kwargs=self.group_page[1])
         self.method_test_context(self.group, 'group', reverse_name)
 
     def test_page_post_create_edit_show_correct_context(self):
         """Шаблоны create, edit сформированы с правильным контекстом."""
 
         pages_addresses = [
-            reverse(self.posts_name[4]),
-            reverse(self.posts_name[5], kwargs=self.kwargs[2]),
+            reverse(self.create_page[0]),
+            reverse(self.edit_page[0], kwargs=self.edit_page[1]),
         ]
         form_fields = {
             'group': forms.ChoiceField,
@@ -121,11 +128,8 @@ class PostPagesTests(TestCase):
         на странице выбранной группы, в профайле пользователя"""
 
         expected_post = self.post
-        pages_addresses = [
-            reverse(self.posts_name[0]),
-            reverse(self.posts_name[1], kwargs=self.kwargs[0]),
-            reverse(self.posts_name[2], kwargs=self.kwargs[1]),
-        ]
+        pages = (self.index_page, self.group_page, self.profile_page,)
+        pages_addresses = [reverse(i[0], kwargs=i[1]) for i in pages]
         for reverse_name in pages_addresses:
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_client.get(reverse_name)
@@ -141,7 +145,7 @@ class PostPagesTests(TestCase):
             description='Тестовое описание второе',
         )
         revers_name = reverse(
-            self.posts_name[1],
+            self.group_page[0],
             kwargs={'slug': self.group1.slug},
         )
         response = self.authorized_client.get(revers_name)
@@ -150,12 +154,16 @@ class PostPagesTests(TestCase):
     def test_pages_paginator(self):
         """Paginator test"""
 
-        pages_addresses = [
-            reverse(self.posts_name[0]),
-            reverse(self.posts_name[1], kwargs=self.kwargs[0]),
-            reverse(self.posts_name[2], kwargs=self.kwargs[1]),
-        ]
-        Post.objects.bulk_create(self.posts, 13)
+        posts = []
+        for i in range(1, 13):
+            posts.append(Post(
+                author=self.user,
+                text=f'Тестовый пост_{i}',
+                group=self.group,
+            ))
+        Post.objects.bulk_create(posts, 13)
+        pages = (self.index_page, self.group_page, self.profile_page)
+        pages_addresses = [reverse(i[0], kwargs=i[1]) for i in pages]
         for reverse_name in pages_addresses:
             page_list = {reverse_name: 10, reverse_name + '?page=2': 3}
             for page, number_post in page_list.items():
