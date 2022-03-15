@@ -77,7 +77,10 @@ class PostPagesTests(TestCase):
             self.create_page,
             self.edit_page,
         )
-        templates_pages = {reverse(i[0], kwargs=i[1]): i[2] for i in pages}
+        templates_pages = {}
+        for page in pages:
+            url, args, html = page
+            templates_pages[reverse(url, kwargs=args)] = html
         for reverse_name, template in templates_pages.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_client.get(reverse_name)
